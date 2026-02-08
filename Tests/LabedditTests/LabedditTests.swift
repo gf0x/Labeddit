@@ -9,7 +9,6 @@ struct LabedditTests {
         let app = try await Application.make(.testing)
         do {
             try await configure(app)
-            try await app.autoMigrate()
             try await test(app)
             try await app.autoRevert()
         } catch {
@@ -19,7 +18,7 @@ struct LabedditTests {
         }
         try await app.asyncShutdown()
     }
-    
+
     @Test("Test Hello World Route")
     func helloWorld() async throws {
         try await withApp { app in
@@ -29,56 +28,76 @@ struct LabedditTests {
             })
         }
     }
-    
-    @Test("Getting all the Todos")
-    func getAllTodos() async throws {
-        try await withApp { app in
-            let sampleTodos = [Todo(title: "sample1"), Todo(title: "sample2")]
-            try await sampleTodos.create(on: app.db)
-            
-            try await app.testing().test(.GET, "todos", afterResponse: { res async throws in
-                #expect(res.status == .ok)
-                #expect(try
-                    res.content.decode([TodoDTO].self).sorted(by: { ($0.title ?? "") < ($1.title ?? "") }) ==
-                    sampleTodos.map { $0.toDTO() }.sorted(by: { ($0.title ?? "") < ($1.title ?? "") })
-                )
-            })
-        }
-    }
-    
-    @Test("Creating a Todo")
-    func createTodo() async throws {
-        let newDTO = TodoDTO(id: nil, title: "test")
-        
-        try await withApp { app in
-            try await app.testing().test(.POST, "todos", beforeRequest: { req in
-                try req.content.encode(newDTO)
-            }, afterResponse: { res async throws in
-                #expect(res.status == .ok)
-                let models = try await Todo.query(on: app.db).all()
-                #expect(models.map({ $0.toDTO().title }) == [newDTO.title])
-            })
-        }
-    }
-    
-    @Test("Deleting a Todo")
-    func deleteTodo() async throws {
-        let testTodos = [Todo(title: "test1"), Todo(title: "test2")]
-        
-        try await withApp { app in
-            try await testTodos.create(on: app.db)
-            
-            try await app.testing().test(.DELETE, "todos/\(testTodos[0].requireID())", afterResponse: { res async throws in
-                #expect(res.status == .noContent)
-                let model = try await Todo.find(testTodos[0].id, on: app.db)
-                #expect(model == nil)
-            })
-        }
-    }
-}
 
-extension TodoDTO: Equatable {
-    public static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.id == rhs.id && lhs.title == rhs.title
+    @Test("Get all posts returns seeded data")
+    func getAllPosts() async throws {
+        try await withApp { app in
+            try await app.testing().test(.GET, "posts", afterResponse: { res async throws in
+                #expect(res.status == .ok)
+                let response = try res.content.decode(PostsResponse.self)
+                #expect(response.posts.count == 20)
+                // Posts should have comments
+                let totalComments = response.posts.reduce(0) { $0 + $1.comments.count }
+                #expect(totalComments > 0)
+            })
+        }
+    }
+
+    @Test("Get single post by ID")
+    func getSinglePost() async throws {
+        try await withApp { app in
+            let post = try await Post.query(on: app.db).first()!
+            let postID = try post.requireID()
+
+            try await app.testing().test(.GET, "posts/\(postID)", afterResponse: { res async throws in
+                #expect(res.status == .ok)
+                let dto = try res.content.decode(PostDTO.self)
+                #expect(dto.id == postID)
+                #expect(!dto.title.isEmpty)
+            })
+        }
+    }
+
+    @Test("Pagination with limit")
+    func paginationWithLimit() async throws {
+        try await withApp { app in
+            try await app.testing().test(.GET, "posts?limit=5", afterResponse: { res async throws in
+                #expect(res.status == .ok)
+                let response = try res.content.decode(PostsResponse.self)
+                #expect(response.posts.count == 5)
+                #expect(response.after != nil)
+            })
+        }
+    }
+
+    @Test("Pagination with after cursor")
+    func paginationWithAfter() async throws {
+        try await withApp { app in
+            // Get first page
+            try await app.testing().test(.GET, "posts?limit=5", afterResponse: { res async throws in
+                let firstPage = try res.content.decode(PostsResponse.self)
+                let after = try #require(firstPage.after)
+
+                // Get second page
+                try await app.testing().test(.GET, "posts?limit=5&after=\(after)", afterResponse: { res async throws in
+                    let secondPage = try res.content.decode(PostsResponse.self)
+                    #expect(secondPage.posts.count == 5)
+                    // No overlap between pages
+                    let firstIDs = Set(firstPage.posts.compactMap(\.id))
+                    let secondIDs = Set(secondPage.posts.compactMap(\.id))
+                    #expect(firstIDs.isDisjoint(with: secondIDs))
+                })
+            })
+        }
+    }
+
+    @Test("Post not found returns 404")
+    func postNotFound() async throws {
+        try await withApp { app in
+            let fakeID = UUID()
+            try await app.testing().test(.GET, "posts/\(fakeID)", afterResponse: { res async in
+                #expect(res.status == .notFound)
+            })
+        }
     }
 }

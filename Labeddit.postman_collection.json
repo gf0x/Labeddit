@@ -1,0 +1,187 @@
+{
+	"info": {
+		"_postman_id": "labeddit-api-collection",
+		"name": "Labeddit API",
+		"description": "Manual testing collection for the Labeddit reddit-like Posts & Comments API.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080"
+		},
+		{
+			"key": "postId",
+			"value": ""
+		}
+	],
+	"item": [
+		{
+			"name": "Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/",
+					"host": ["{{baseUrl}}"],
+					"path": [""]
+				}
+			}
+		},
+		{
+			"name": "Get All Posts (default limit 20)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"const res = pm.response.json();",
+							"pm.test('Returns posts array', () => pm.expect(res.posts).to.be.an('array'));",
+							"pm.test('Posts have comments', () => res.posts.forEach(p => pm.expect(p.comments).to.be.an('array')));",
+							"",
+							"// Save first post id for later requests",
+							"if (res.posts.length > 0) {",
+							"    pm.collectionVariables.set('postId', res.posts[0].id);",
+							"}",
+							"",
+							"// Save after cursor for pagination test",
+							"if (res.after) {",
+							"    pm.collectionVariables.set('afterCursor', res.after);",
+							"}"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/posts",
+					"host": ["{{baseUrl}}"],
+					"path": ["posts"]
+				}
+			}
+		},
+		{
+			"name": "Get Posts — Paginated (limit=5)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"const res = pm.response.json();",
+							"pm.test('Returns exactly 5 posts', () => pm.expect(res.posts.length).to.eql(5));",
+							"pm.test('Has after cursor', () => pm.expect(res.after).to.be.a('string'));",
+							"",
+							"if (res.after) {",
+							"    pm.collectionVariables.set('afterCursor', res.after);",
+							"}"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/posts?limit=5",
+					"host": ["{{baseUrl}}"],
+					"path": ["posts"],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "Get Posts — Next Page (after cursor)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"const res = pm.response.json();",
+							"pm.test('Returns posts array', () => pm.expect(res.posts).to.be.an('array'));",
+							"pm.test('Returns up to 5 posts', () => pm.expect(res.posts.length).to.be.at.most(5));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/posts?limit=5&after={{afterCursor}}",
+					"host": ["{{baseUrl}}"],
+					"path": ["posts"],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						},
+						{
+							"key": "after",
+							"value": "{{afterCursor}}"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "Get Single Post by ID",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"const res = pm.response.json();",
+							"pm.test('Status is 200', () => pm.response.to.have.status(200));",
+							"pm.test('Has title', () => pm.expect(res.title).to.be.a('string'));",
+							"pm.test('Has comments array', () => pm.expect(res.comments).to.be.an('array'));",
+							"pm.test('Has image_url', () => pm.expect(res.image_url).to.be.a('string'));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/posts/{{postId}}",
+					"host": ["{{baseUrl}}"],
+					"path": ["posts", "{{postId}}"]
+				}
+			}
+		},
+		{
+			"name": "Get Post — Not Found (404)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('Status is 404', () => pm.response.to.have.status(404));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/posts/00000000-0000-0000-0000-000000000000",
+					"host": ["{{baseUrl}}"],
+					"path": ["posts", "00000000-0000-0000-0000-000000000000"]
+				}
+			}
+		}
+	]
+}
