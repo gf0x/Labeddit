@@ -27,7 +27,7 @@ func seedDatabase(_ app: Application) async throws {
     let now = Date().timeIntervalSince1970
     var rng = SeededRNG(seed: UInt64(now))
 
-    let postCount = 20
+    let postCount = 2_000
     let usernames = [
         "swiftdev42", "appbuilder_jane", "codeMaster99", "ios_mentor",
         "rustacean_ios", "async_await_fan", "vapor_enthusiast", "fullstack_swift",
