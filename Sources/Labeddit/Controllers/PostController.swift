@@ -1,5 +1,6 @@
 import Fluent
 import Vapor
+import Foundation
 
 struct PostController: RouteCollection {
     func boot(routes: any RoutesBuilder) throws {
@@ -7,6 +8,7 @@ struct PostController: RouteCollection {
 
         posts.get(use: self.index)
         posts.get(":postID", use: self.show)
+        posts.post(use: self.create)
     }
 
     @Sendable
@@ -43,4 +45,60 @@ struct PostController: RouteCollection {
         try await post.$comments.load(on: req.db)
         return post.toDTO()
     }
+
+    @Sendable
+    func create(req: Request) async throws -> PostDTO {
+        let input = try req.content.decode(CreatePostRequest.self)
+
+        guard !input.title.trimmingCharacters(in: .whitespaces).isEmpty else {
+            throw Abort(.badRequest, reason: "Title cannot be empty")
+        }
+        guard !input.text.trimmingCharacters(in: .whitespaces).isEmpty else {
+            throw Abort(.badRequest, reason: "Text cannot be empty")
+        }
+        guard !input.username.trimmingCharacters(in: .whitespaces).isEmpty else {
+            throw Abort(.badRequest, reason: "Username cannot be empty")
+        }
+
+        var imageURL = ""
+
+        if let file = input.image, file.data.readableBytes > 0 {
+            let ext = (file.filename as NSString).pathExtension.lowercased()
+            let validExtensions = ["jpg", "jpeg", "png", "gif", "webp", "heic"]
+            let safeExt = validExtensions.contains(ext) ? ext : "jpg"
+
+            let filename = "\(UUID().uuidString).\(safeExt)"
+            let imagesDir = req.application.directory.publicDirectory + "images/"
+            let filePath = imagesDir + filename
+
+            var buffer = file.data
+            guard let data = buffer.readData(length: buffer.readableBytes) else {
+                throw Abort(.internalServerError, reason: "Failed to read uploaded file")
+            }
+            try data.write(to: URL(fileURLWithPath: filePath))
+
+            imageURL = "/images/\(filename)"
+        }
+
+        let post = Post(
+            username: input.username,
+            createdAt: Date().timeIntervalSince1970,
+            title: input.title,
+            domain: "user.post",
+            text: input.text,
+            ups: 0,
+            downs: 0,
+            imageURL: imageURL
+        )
+
+        try await post.save(on: req.db)
+        return post.toDTO()
+    }
+}
+
+struct CreatePostRequest: Content {
+    var title: String
+    var text: String
+    var username: String
+    var image: File?
 }

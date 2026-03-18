@@ -161,6 +161,109 @@
 			}
 		},
 		{
+			"name": "Create Post (text only)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"const res = pm.response.json();",
+							"pm.test('Status is 200', () => pm.response.to.have.status(200));",
+							"pm.test('Has id', () => pm.expect(res.id).to.be.a('string'));",
+							"pm.test('Has title', () => pm.expect(res.title).to.be.a('string'));",
+							"pm.test('image_url is empty for text-only post', () => pm.expect(res.image_url).to.eql(''));",
+							"pm.collectionVariables.set('postId', res.id);"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{ "key": "title", "value": "My first post", "type": "text" },
+						{ "key": "text", "value": "Hello from the Postman collection!", "type": "text" },
+						{ "key": "username", "value": "student42", "type": "text" }
+					]
+				},
+				"url": {
+					"raw": "{{baseUrl}}/posts",
+					"host": ["{{baseUrl}}"],
+					"path": ["posts"]
+				}
+			}
+		},
+		{
+			"name": "Create Post (with image)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"const res = pm.response.json();",
+							"pm.test('Status is 200', () => pm.response.to.have.status(200));",
+							"pm.test('Has id', () => pm.expect(res.id).to.be.a('string'));",
+							"pm.test('image_url starts with /images/', () => pm.expect(res.image_url).to.match(/^\\/images\\//));",
+							"pm.collectionVariables.set('postId', res.id);"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{ "key": "title", "value": "Post with a photo", "type": "text" },
+						{ "key": "text", "value": "Check out this image I uploaded!", "type": "text" },
+						{ "key": "username", "value": "student42", "type": "text" },
+						{ "key": "image", "type": "file", "src": "" }
+					]
+				},
+				"url": {
+					"raw": "{{baseUrl}}/posts",
+					"host": ["{{baseUrl}}"],
+					"path": ["posts"]
+				}
+			}
+		},
+		{
+			"name": "Create Post — Validation Error (empty title)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.test('Status is 400', () => pm.response.to.have.status(400));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{ "key": "title", "value": "   ", "type": "text" },
+						{ "key": "text", "value": "Body text here", "type": "text" },
+						{ "key": "username", "value": "student42", "type": "text" }
+					]
+				},
+				"url": {
+					"raw": "{{baseUrl}}/posts",
+					"host": ["{{baseUrl}}"],
+					"path": ["posts"]
+				}
+			}
+		},
+		{
 			"name": "Get Post — Not Found (404)",
 			"event": [
 				{

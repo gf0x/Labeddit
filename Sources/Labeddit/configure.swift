@@ -2,11 +2,19 @@ import NIOSSL
 import Fluent
 import FluentSQLiteDriver
 import Vapor
+import Foundation
 
 // configures your application
 public func configure(_ app: Application) async throws {
-    // uncomment to serve files from /Public folder
-    // app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
+    // Serve static files from /Public folder (for uploaded images)
+    app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
+
+    // Allow up to 10 MB for multipart image uploads
+    app.routes.defaultMaxBodySize = "10mb"
+
+    // Ensure the images upload directory exists
+    let imagesDir = app.directory.publicDirectory + "images"
+    try FileManager.default.createDirectory(atPath: imagesDir, withIntermediateDirectories: true)
 
     app.databases.use(DatabaseConfigurationFactory.sqlite(.file("db.sqlite")), as: .sqlite)
 
