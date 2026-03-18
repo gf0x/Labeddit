@@ -1,4 +1,5 @@
 import Fluent
+import Leaf
 import Vapor
 import Foundation
 
@@ -70,13 +71,41 @@ struct PostController: RouteCollection {
         return PostsResponse(posts: dtos, after: after)
     }
 
+    // MARK: - GET /posts/:postID  (JSON or HTML based on Accept header)
+
     @Sendable
-    func show(req: Request) async throws -> PostDTO {
+    func show(req: Request) async throws -> Response {
         guard let post = try await Post.find(req.parameters.get("postID"), on: req.db) else {
             throw Abort(.notFound)
         }
         try await post.$comments.load(on: req.db)
-        return post.toDTO()
+        let dto = post.toDTO()
+
+        let prefersHTML = req.headers[.accept].contains { $0.contains("text/html") }
+        guard prefersHTML else {
+            return try await dto.encodeResponse(for: req)
+        }
+
+        let date = Date(timeIntervalSince1970: dto.createdAt)
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        let comments = dto.comments.map {
+            CommentLeafContext(username: $0.username, text: $0.text, ups: $0.ups, downs: $0.downs)
+        }
+        let context = PostLeafContext(
+            title: dto.title,
+            username: dto.username,
+            domain: dto.domain,
+            date: formatter.string(from: date),
+            text: dto.text,
+            imageURL: dto.imageURL.isEmpty ? nil : dto.imageURL,
+            ups: dto.ups,
+            downs: dto.downs,
+            comments: comments,
+            hasComments: !comments.isEmpty
+        )
+        return try await req.view.render("post", context).encodeResponse(for: req)
     }
 
     @Sendable
@@ -134,4 +163,26 @@ struct CreatePostRequest: Content {
     var text: String
     var username: String
     var image: File?
+}
+
+// MARK: - Leaf context types
+
+private struct PostLeafContext: Encodable {
+    let title: String
+    let username: String
+    let domain: String
+    let date: String
+    let text: String
+    let imageURL: String?
+    let ups: Int
+    let downs: Int
+    let comments: [CommentLeafContext]
+    let hasComments: Bool
+}
+
+private struct CommentLeafContext: Encodable {
+    let username: String
+    let text: String
+    let ups: Int
+    let downs: Int
 }
