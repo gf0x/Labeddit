@@ -5,20 +5,53 @@ import Foundation
 struct PostController: RouteCollection {
     func boot(routes: any RoutesBuilder) throws {
         let posts = routes.grouped("posts")
-
-        posts.get(use: self.index)
+        posts.get(use: self.index)          // deprecated
         posts.get(":postID", use: self.show)
         posts.post(use: self.create)
+
+        let r = routes.grouped("r")
+        r.get(":subreddit", use: self.indexByDomain)
     }
 
+    // MARK: - Deprecated: GET /posts
+
     @Sendable
-    func index(req: Request) async throws -> PostsResponse {
+    func index(req: Request) async throws -> Response {
+        let body = try await fetchPosts(req: req, domain: nil)
+        let response = try await body.encodeResponse(for: req)
+        response.headers.add(name: "Deprecation", value: "true")
+        response.headers.add(name: "Link", value: "</r/{subreddit}>; rel=\"successor-version\"")
+        response.headers.add(
+            name: "Warning",
+            value: #"299 - "GET /posts is deprecated. Use GET /r/:subreddit instead.""#
+        )
+        return response
+    }
+
+    // MARK: - GET /r/:subreddit
+
+    @Sendable
+    func indexByDomain(req: Request) async throws -> PostsResponse {
+        guard let subreddit = req.parameters.get("subreddit") else {
+            throw Abort(.badRequest, reason: "Missing subreddit parameter")
+        }
+        let domain = "r/\(subreddit)"
+        return try await fetchPosts(req: req, domain: domain)
+    }
+
+    // MARK: - Shared fetch logic
+
+    private func fetchPosts(req: Request, domain: String?) async throws -> PostsResponse {
         let limit = (try? req.query.get(Int.self, at: "limit")) ?? 20
         let afterID = try? req.query.get(UUID.self, at: "after")
 
         var query = Post.query(on: req.db)
             .with(\.$comments)
             .sort(\.$createdAt, .descending)
+
+        if let domain {
+            query = query.filter(\.$domain == domain)
+        }
 
         if let afterID = afterID {
             guard let afterPost = try await Post.find(afterID, on: req.db) else {
