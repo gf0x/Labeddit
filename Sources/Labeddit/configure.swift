@@ -2,10 +2,13 @@ import NIOSSL
 import Fluent
 import FluentSQLiteDriver
 import Vapor
+import Leaf
 import Foundation
 
 // configures your application
 public func configure(_ app: Application) async throws {
+    app.views.use(.leaf)
+
     // Serve static files from /Public folder (for uploaded images)
     app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
 

@@ -13,6 +13,8 @@ let package = Package(
         .package(url: "https://github.com/vapor/fluent.git", from: "4.9.0"),
         // 🪶 Fluent driver for SQLite.
         .package(url: "https://github.com/vapor/fluent-sqlite-driver.git", from: "4.6.0"),
+        // 🍃 Leaf templating engine for HTML views.
+        .package(url: "https://github.com/vapor/leaf.git", from: "4.3.0"),
         // 🔵 Non-blocking, event-driven networking for Swift. Used for custom executors
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.65.0"),
     ],
@@ -23,6 +25,7 @@ let package = Package(
                 .product(name: "Fluent", package: "fluent"),
                 .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
                 .product(name: "Vapor", package: "vapor"),
+                .product(name: "Leaf", package: "leaf"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
             ],
