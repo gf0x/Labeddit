@@ -29,7 +29,7 @@
 			}
 		},
 		{
-			"name": "Get All Posts (default limit 20)",
+			"name": "Get Posts by Subreddit (default limit 20)",
 			"event": [
 				{
 					"listen": "test",
@@ -39,13 +39,11 @@
 							"const res = pm.response.json();",
 							"pm.test('Returns posts array', () => pm.expect(res.posts).to.be.an('array'));",
 							"pm.test('Posts have comments', () => res.posts.forEach(p => pm.expect(p.comments).to.be.an('array')));",
+							"pm.test('All posts match requested domain', () => res.posts.forEach(p => pm.expect(p.domain).to.eql('r/swift')));",
 							"",
-							"// Save first post id for later requests",
 							"if (res.posts.length > 0) {",
 							"    pm.collectionVariables.set('postId', res.posts[0].id);",
 							"}",
-							"",
-							"// Save after cursor for pagination test",
 							"if (res.after) {",
 							"    pm.collectionVariables.set('afterCursor', res.after);",
 							"}"
@@ -57,14 +55,14 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{baseUrl}}/posts",
+					"raw": "{{baseUrl}}/r/swift",
 					"host": ["{{baseUrl}}"],
-					"path": ["posts"]
+					"path": ["r", "swift"]
 				}
 			}
 		},
 		{
-			"name": "Get Posts — Paginated (limit=5)",
+			"name": "Get Posts by Subreddit — Paginated (limit=5)",
 			"event": [
 				{
 					"listen": "test",
@@ -86,20 +84,15 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{baseUrl}}/posts?limit=5",
+					"raw": "{{baseUrl}}/r/swift?limit=5",
 					"host": ["{{baseUrl}}"],
-					"path": ["posts"],
-					"query": [
-						{
-							"key": "limit",
-							"value": "5"
-						}
-					]
+					"path": ["r", "swift"],
+					"query": [{ "key": "limit", "value": "5" }]
 				}
 			}
 		},
 		{
-			"name": "Get Posts — Next Page (after cursor)",
+			"name": "Get Posts by Subreddit — Next Page (after cursor)",
 			"event": [
 				{
 					"listen": "test",
@@ -117,19 +110,38 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{baseUrl}}/posts?limit=5&after={{afterCursor}}",
+					"raw": "{{baseUrl}}/r/swift?limit=5&after={{afterCursor}}",
 					"host": ["{{baseUrl}}"],
-					"path": ["posts"],
+					"path": ["r", "swift"],
 					"query": [
-						{
-							"key": "limit",
-							"value": "5"
-						},
-						{
-							"key": "after",
-							"value": "{{afterCursor}}"
-						}
+						{ "key": "limit", "value": "5" },
+						{ "key": "after", "value": "{{afterCursor}}" }
 					]
+				}
+			}
+		},
+		{
+			"name": "[Deprecated] Get All Posts — GET /posts",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"const res = pm.response.json();",
+							"pm.test('Returns posts array', () => pm.expect(res.posts).to.be.an('array'));",
+							"pm.test('Has Deprecation header', () => pm.expect(pm.response.headers.get('Deprecation')).to.eql('true'));"
+						]
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/posts",
+					"host": ["{{baseUrl}}"],
+					"path": ["posts"]
 				}
 			}
 		},

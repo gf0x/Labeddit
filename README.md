@@ -15,9 +15,12 @@ A reddit-like REST API built with [Vapor 4](https://vapor.codes) and SQLite, des
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/posts` | All posts with nested comments. Supports `?limit=` and `?after=` query params |
+| `GET` | `/r/:subreddit` | Posts for a subreddit. Supports `?limit=` and `?after=` query params |
 | `GET` | `/posts/:postID` | Single post with its comments |
 | `POST` | `/posts` | Create a new post (see below) |
+| `GET` | `/posts` | ⚠️ **Deprecated** — returns all posts without domain filtering. Use `/r/:subreddit` instead. Responds with `Deprecation: true` header. |
+
+Available subreddits in the seeded database: `swift`, `SwiftUI`, `iOSProgramming`, `apple`, `learnprogramming`, `iOSDev`.
 
 ### POST /posts
 
